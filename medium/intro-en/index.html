@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Spec-Driven Development, Minus the Vibes: A Scientific Approach to Coding Agents</title>
+  <meta name="description" content="Why my coding agent can write the code, tests, plan, and review notes, but still does not get the final merge.">
+  <meta name="medium-tags" content="AI, Software Engineering, Spec Driven Development, LLM, Developer Tools">
+  <link rel="canonical" href="https://azalio.github.io/azalio-medium/medium/intro-en/">
+  <link rel="alternate" hreflang="en" href="https://azalio.github.io/azalio-medium/medium/intro-en/">
+  <link rel="alternate" hreflang="ru" href="https://azalio.github.io/azalio-medium/medium/intro-ru/">
+  <link rel="alternate" hreflang="x-default" href="https://azalio.github.io/azalio-medium/medium/intro-en/">
+  <style>
+    body {
+      color: #242424;
+      font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+      font-size: 20px;
+      line-height: 1.6;
+      margin: 48px auto;
+      max-width: 740px;
+      padding: 0 24px;
+    }
+    h1, h2 {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.15;
+    }
+    h1 {
+      font-size: 42px;
+      margin-bottom: 12px;
+    }
+    h2 {
+      font-size: 28px;
+      margin-top: 44px;
+    }
+    .subtitle {
+      color: #6b6b6b;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 22px;
+      line-height: 1.35;
+      margin-top: 0;
+    }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 0.9em;
+    }
+    .loop {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 18px;
+      white-space: pre-wrap;
+    }
+    hr {
+      border: 0;
+      border-top: 1px solid #e6e6e6;
+      margin: 48px 0 24px;
+    }
+    .note {
+      color: #555;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <article>
+    <h1>Spec-Driven Development, Minus the Vibes: A Scientific Approach to Coding Agents</h1>
+
+    <p class="subtitle">Why my coding agent can write the code, tests, plan, and review notes, but still does not get the final merge.</p>
+
+    <p>There is a tempting trap with stronger models: give them more freedom.</p>
+
+    <p>In coding, that goes wrong fast. The agent writes a lot. It sounds confident. Sometimes the code even looks clean. Then you open the diff and realize that along with the useful work, it made decisions you would never have approved yourself.</p>
+
+    <p>After a few rounds of that, I ended up with a simple boundary.</p>
+
+    <p>The AI can propose. I do the merge.</p>
+
+    <p>Not because I do not trust models. I use them every day, and pretty aggressively. The problem is simpler: a coding agent does not own the consequences of its decisions. It can write code quickly, but it does not know where "looks good" stops being good enough.</p>
+
+    <p>A human can catch that. But only if the process has an actual human decision point, not just a final confident summary from the model.</p>
+
+    <p>That is why my work on <a href="https://github.com/azalio/map-framework">map-framework</a> is not really about making the model smarter. I am not improving Claude or Codex. I am improving the environment around them, so their output can survive a serious review.</p>
+
+    <h2>Where I draw the line</h2>
+
+    <p>In my workflow, the agent does not make the final decision.</p>
+
+    <p>It can propose a spec. It can split the task. It can write tests. It can write code. It can prepare review evidence. It can record what went wrong. But transitions between stages stay under human control. The final transition, merge into main, is always mine.</p>
+
+    <p>That sounds like a small detail until you look at what happens without it.</p>
+
+    <p>If the agent moves the task forward by itself, it starts optimizing for the wrong thing. It is easier to close the workflow than to admit the spec is weak. Easier to add a workaround than to go back to the plan. Easier to say "tests passed" than to show which tests were relevant.</p>
+
+    <p>It is not malicious. It just keeps executing.</p>
+
+    <p>I do not want an autonomous agent that keeps going without inspection. I want a tool that does the heavy work while leaving a clear point where a human accepts responsibility.</p>
+
+    <p>So the rule is boring and strict: the AI proposes, I merge.</p>
+
+    <h2>What I mean by spec-driven</h2>
+
+    <p>For me, spec-driven development is not a slogan and not a folder full of documents.</p>
+
+    <p>It means the agent is not allowed to start with code. First we write down the behavior, the invariants, and the acceptance criteria. What must not break. Which data source is the source of truth. How we will know the task is actually done.</p>
+
+    <p>Then the task is split into small contracts. Not "implement the feature", but pieces with a clear expected change and a way to check it.</p>
+
+    <p>Only after that does the agent write code.</p>
+
+    <p>The loop looks like this:</p>
+
+    <p class="loop">SPEC -> PLAN -> TEST -> CODE -> REVIEW -> LEARN</p>
+
+    <p>I do not run this as a ceremony. I run it as a set of checks.</p>
+
+    <p>Before risky code, I want a failing test or at least a concrete scenario. After code, I want a separate review role, usually a separate console with clean context. The reviewer needs regression risk, blast radius, and artifacts, not a retelling of the author's intent.</p>
+
+    <p>If a check failed, the plan changed mid-run, or I had to intervene manually, something should remain after the run: a test, a rule, a note, or a hook change. Otherwise the next session will probably repeat the same mistake with a different file name.</p>
+
+    <h2>The scientific part, without pretending this is a lab</h2>
+
+    <p>I use the word "scientific" carefully here.</p>
+
+    <p>I do not mean that every number in this series is a controlled benchmark. It is not. Some of the measurements are small, local, and tied to my own codebase.</p>
+
+    <p>I mean something more basic and more useful for engineering:</p>
+
+    <ul>
+      <li>make a claim;</li>
+      <li>tie it to an artifact;</li>
+      <li>run a check;</li>
+      <li>keep the failure record;</li>
+      <li>change the process when the failure repeats.</li>
+    </ul>
+
+    <p>That is the difference between "the agent seemed better" and "the agent skipped contract checks in 10 out of 15 runs, here are the transcripts."</p>
+
+    <p>The mechanisms I will write about in this series did not come from vibes. Most of them started as an idea from a paper or a known engineering practice: hooks instead of one giant prompt, design-by-contract, context offloading, memory between sessions, clean retry quarantine. Then I tried to make them survive real coding work.</p>
+
+    <p>Some survived. Some did not. The ones that did not are usually more useful to talk about.</p>
+
+    <h2>What the agent is not allowed to do</h2>
+
+    <p>The first rule is already clear: the agent does not merge its own work.</p>
+
+    <p>There are a few more. They are not there because I enjoy process. Each one exists because something broke.</p>
+
+    <p>The agent does not review its own code as the final authority. Authors are bad at seeing their own gaps; models are not magically exempt from that.</p>
+
+    <p>Production secrets are not a moral slogan. Sometimes an agent can technically read a file. The boundary is where values can end up. They must not be copied into the answer, transcript, log, markdown artifact, diff, or anywhere else that survives the session.</p>
+
+    <p>Green CI is mandatory. If CI is red, I do not care that the agent says the change is local.</p>
+
+    <p>Invalid output hard-stops the run. If the monitor sees truncated JSON, a missing artifact, or a broken contract, the workflow stops. Not "we will look later." Stop.</p>
+
+    <p>And every serious run leaves artifacts under <code>.map/</code>. These files are not exciting. That is the point. They answer the boring questions later: what was the plan, what changed, what was checked, what failed, what did we learn?</p>
+
+    <p>Without artifacts, you are left with memory and a convincing narrative after the fact. Agents are very good at convincing narratives.</p>
+
+    <h2>This is not heavy by default</h2>
+
+    <p>I do not want enterprise ceremony for a README typo.</p>
+
+    <p>The depth depends on risk. A small change gets a short plan, implementation, check, review, and a lesson only if there is actually something worth saving. Risky code gets the full TDD path and separate roles. Sometimes only one subtask needs TDD.</p>
+
+    <p>The common part is the accept gate.</p>
+
+    <p>The task should not be "done" only because the chat says so. There should be an artifact and a check that explain why it is done.</p>
+
+    <p>Otherwise the end state is just a confident answer from the agent, not a result you can review.</p>
+
+    <h2>Why I went this far</h2>
+
+    <p>map-framework grew out of a practical problem: coding agents can produce a diff quickly, but long tasks become hard to control without stages and checks. Especially in large Go code, where a mistake does not always fail immediately.</p>
+
+    <p>A recent example: reviewer comments around <code>IngressConfig</code> in a Kubernetes operator. The work was not glamorous. Move fields under <code>settings.{nginx,contour}</code>, update tests and CRD/deepcopy, avoid leaking plan markers into Go code.</p>
+
+    <p>It ended up as nine commits.</p>
+
+    <p>The final verifier ran <code>gofmt</code>, <code>go vet</code>, <code>go build</code>, functional tests, checked CRD invariants, and found one non-blocking issue: an old test comment still said <code>spec.nginx.enabled</code>, while the code already used <code>Spec.Settings.Nginx.Enabled</code>.</p>
+
+    <p>That is exactly the kind of thing I can miss in a manual review. In a <code>findings</code> artifact, it is written down. Without that artifact, the agent's output is basically "done, trust me."</p>
+
+    <p>After moving to this workflow on a production Go platform with a codebase over a million lines, the monthly amount of code that survived review and reached main grew by roughly 1.8x over six months.</p>
+
+    <p>I counted roughly, by lines. It is not a perfect productivity metric. Lines of code are not value. But it was enough signal for me to stop treating the workflow as a personal habit and start treating it as an engineering mechanism.</p>
+
+    <h2>What comes next</h2>
+
+    <p>This is the intro.</p>
+
+    <p>The rest of the series is about the places where the process actually broke:</p>
+
+    <ul>
+      <li>the 994-line instruction that made Claude silently skip mandatory steps;</li>
+      <li>why task boundaries matter before code exists;</li>
+      <li>why "more context" is often the wrong instinct;</li>
+      <li>memory between agent sessions;</li>
+      <li>what survived the path from arXiv to production, and what I cut.</li>
+    </ul>
+
+    <p>I will also compare this with neighboring approaches like GitHub Spec Kit and superpowers. Agent discipline is not a new idea. The useful question is where each system draws the boundary and how it enforces it.</p>
+
+    <p>I am not interested in "will AI replace developers?"</p>
+
+    <p>That question is too broad to be useful.</p>
+
+    <p>I am interested in something more concrete: which engineering practices make coding agents predictable enough to put them near serious code and still not be ashamed during review.</p>
+
+    <p>Where do you draw the line? Can your agent merge, or does the final accept stay human?</p>
+
+    <hr>
+
+    <p class="note">This article is based on my open-source work on <a href="https://github.com/azalio/map-framework">map-framework</a>. Coding agents are both the subject of the article and part of the workflow; the numeric claims are grounded in code, commits, A/B transcripts, and dogfooding artifacts.</p>
+  </article>
+</body>
+</html>
