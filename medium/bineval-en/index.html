@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Ask, Don't Judge? I Tried Binary LLM Evaluation on a Real Judge</title>
+  <meta name="description" content="BINEVAL is a useful paper. My replication found a narrower lesson: binary questions rescue weak judges, but they did not beat a capable holistic judge.">
+  <meta name="medium-tags" content="AI, LLM Evaluation, LLM As Judge, Software Engineering, Developer Tools">
+  <link rel="canonical" href="https://azalio.github.io/azalio-medium/medium/bineval-en/">
+  <style>
+    body {
+      color: #242424;
+      font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+      font-size: 20px;
+      line-height: 1.6;
+      margin: 48px auto;
+      max-width: 740px;
+      padding: 0 24px;
+    }
+    h1, h2 {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.15;
+    }
+    h1 {
+      font-size: 42px;
+      margin-bottom: 12px;
+    }
+    h2 {
+      font-size: 28px;
+      margin-top: 44px;
+    }
+    .subtitle {
+      color: #6b6b6b;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 22px;
+      line-height: 1.35;
+      margin-top: 0;
+    }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 0.9em;
+    }
+    table {
+      border-collapse: collapse;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 16px;
+      line-height: 1.4;
+      margin: 24px 0;
+      width: 100%;
+    }
+    th, td {
+      border-bottom: 1px solid #e6e6e6;
+      padding: 10px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      font-weight: 700;
+    }
+    hr {
+      border: 0;
+      border-top: 1px solid #e6e6e6;
+      margin: 48px 0 24px;
+    }
+    .note {
+      color: #555;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <article>
+    <h1>Ask, Don't Judge? I Tried Binary LLM Evaluation on a Real Judge</h1>
+
+    <p class="subtitle">BINEVAL is a useful paper. My replication found a narrower lesson: binary questions rescue weak judges, but they did not beat a capable holistic judge.</p>
+
+    <p><strong>TL;DR</strong></p>
+    <ul>
+      <li>BINEVAL is a useful paper, but the practical lesson is narrower than "replace scores with yes/no questions."</li>
+      <li>In my QAGS replication, binary decomposition never beat a proper holistic G-Eval-style judge with the models I actually run.</li>
+      <li>With Claude it tied within noise; with gpt-4.1-mini the holistic judge was significantly better, at 1/7 the call cost.</li>
+      <li>I am keeping binary questions as a diagnostic and rescue tool, not as the production judge path for my LLM-council.</li>
+    </ul>
+
+    <p>I liked the idea immediately.</p>
+
+    <p>If you use LLM-as-a-Judge, you know the annoying failure mode. The model gives an answer an 8.5. Or 4 out of 5. Or "mostly correct". The number looks precise enough to put in a dashboard, but not precise enough to tell you what to fix.</p>
+
+    <p>That is why <a href="https://arxiv.org/abs/2606.27226">Ask, Don't Judge: Binary Questions for Interpretable LLM Evaluation and Self-Improvement</a> is attractive. The paper's core move is simple: stop asking the judge for one holistic score. Decompose the criterion into yes/no questions, answer them independently, then aggregate the verdicts.</p>
+
+    <p>Instead of "rate factual consistency from 1 to 5", ask smaller questions:</p>
+
+    <ul>
+      <li>Are all claims supported by the source?</li>
+      <li>Are named entities represented correctly?</li>
+      <li>Do numbers and dates match?</li>
+      <li>Does the summary avoid fabricated facts?</li>
+    </ul>
+
+    <p>That is a better interface for debugging. A failed question is something you can inspect. A low score is just a low score.</p>
+
+    <p>So I did what I usually do with papers that look useful: I wired the idea into my own system and tried to make it survive contact with a real evaluation path.</p>
+
+    <h2>The tempting conclusion</h2>
+
+    <p>The shallow version of the lesson is easy to oversell:</p>
+
+    <p>Do not let LLMs judge. Make them answer yes/no questions.</p>
+
+    <p>I do not think that is the actual lesson.</p>
+
+    <p>The paper shows something more specific. Binary decomposition can make evaluation more interpretable, and it can help when a holistic judge collapses. That is valuable. But "more interpretable" and "better ranking signal for my production judge" are different claims.</p>
+
+    <p>In my setup, the second claim mattered. I have an LLM-council system where answers can be compared by an operator-facing judge. If I replace part of that judge, I need to know whether the replacement is actually better, not just cleaner to explain.</p>
+
+    <p>So I tested it in two rounds.</p>
+
+    <h2>The first attempt was not fair</h2>
+
+    <p>My first pilot was the wrong shape.</p>
+
+    <p>I built a pairwise binary factuality judge with a static checklist and ran it on open QA-style answers. It was useful engineering work, because it exposed implementation details: score aggregation, critical failures, parse reliability, leakage audit, feature flags, and cost. But it was not a faithful test of BINEVAL.</p>
+
+    <p>It broke three important parts of the paper:</p>
+
+    <ul>
+      <li>the questions were generic and hand-written, not generated for the task;</li>
+      <li>the judge had no source document to ground factuality against;</li>
+      <li>the metric was pairwise winner discrimination, not correlation with human ratings.</li>
+    </ul>
+
+    <p>That matters. If the paper says "source-grounded factual consistency improves when you decompose the criterion", then testing a reference-free pairwise QA judge mostly tests my own extrapolation.</p>
+
+    <p>So I kept the first pilot as an implementation note and reran the experiment inside the paper's design envelope.</p>
+
+    <h2>The replication I trust</h2>
+
+    <p>The faithful version used QAGS, a factual-consistency benchmark for summaries. Each record has a source article, a candidate summary, and human consistency labels. That is exactly the kind of task where binary factuality questions should have a chance to work.</p>
+
+    <p>I implemented three scorers:</p>
+
+    <p><strong>BINEVAL-style decomposition.</strong> Generate or reuse a task-level bank of factual-consistency questions. For each summary, answer each question independently with the source article in context. Score is the fraction of satisfied questions. In my run, that means seven model calls per summary.</p>
+
+    <p><strong>Holistic baseline.</strong> One G-Eval-style call: read the source, read the summary, assign a 1-5 factual-consistency score. Normalize to 0-1. One model call per summary.</p>
+
+    <p><strong>Single Boolean baseline.</strong> One yes/no question: "Is the summary factually consistent with the source article?" This is the coarse baseline. Also one call.</p>
+
+    <p>Then I correlated each scorer with human labels using Spearman rho. I sampled 60 CNN/DM summaries and 60 XSum summaries, seed 42, 120 total. Not the full benchmark, but enough to see whether the effect is obvious. I also used paired bootstrap confidence intervals for the BINEVAL vs holistic gap.</p>
+
+    <h2>The numbers</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Evaluator</th>
+          <th>BINEVAL rho</th>
+          <th>Holistic rho</th>
+          <th>Single-bool rho</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Claude Sonnet 4.5, generated bank</td>
+          <td>0.691</td>
+          <td><strong>0.711</strong></td>
+          <td>0.618</td>
+        </tr>
+        <tr>
+          <td>Claude Sonnet 4.5, paper bank</td>
+          <td>0.655</td>
+          <td><strong>0.709</strong></td>
+          <td>0.618</td>
+        </tr>
+        <tr>
+          <td>gpt-4.1-mini, paper bank</td>
+          <td>0.621</td>
+          <td><strong>0.735</strong></td>
+          <td>0.564</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>Combined CNN/DM + XSum, n=120.</p>
+
+    <p>BINEVAL never wins.</p>
+
+    <p>With Claude, it ties within noise. With gpt-4.1-mini, the holistic baseline is significantly better: delta rho is -0.104, with a 95% bootstrap interval of [-0.177, -0.034].</p>
+
+    <p>The single Boolean baseline is weaker, which is good to know. Decomposition does beat asking one coarse yes/no question. But it still does not beat one well-written holistic scoring prompt.</p>
+
+    <p>And it costs seven times more calls.</p>
+
+    <h2>This does not make the paper wrong</h2>
+
+    <p>The interesting part is why this differs from the headline people will remember.</p>
+
+    <p>On QAGS, the paper's large win comes from a regime where the holistic baseline collapses on a weak open evaluator. Their G-Eval run with gpt-oss-120b gets near-random correlation. BINEVAL does much better there.</p>
+
+    <p>That is a real result. It means binary decomposition can rescue a judge that cannot produce a useful holistic score.</p>
+
+    <p>But that is not my regime.</p>
+
+    <p>My weakest working evaluator was still strong enough to produce a good holistic score. Once the holistic judge does not collapse, there is much less for decomposition to rescue. The extra calls mostly add harshness and noise.</p>
+
+    <p>For strong models, the paper itself is much closer to a tie. My replication also sees a tie. That is not a contradiction. It is the part of the result that matters operationally.</p>
+
+    <h2>Where binary questions still win</h2>
+
+    <p>I am not throwing the idea away.</p>
+
+    <p>Binary questions are better diagnostics. If an answer fails "numbers match the source", I can inspect that. If it fails "named entities are represented correctly", I know what category of defect I have. That is much more useful than staring at 3.7 and guessing.</p>
+
+    <p>They are also good for leakage audits and adversarial probes. A question bank can be reviewed like code. You can add polarity, severity, critical-fail caps, and not-applicable handling. You can detect questions with a 95% yes-rate and delete them. You can version the checklist.</p>
+
+    <p>That is real engineering value.</p>
+
+    <p>But in my system, that makes binary evaluation a diagnostic surface, not a production replacement for the holistic judge.</p>
+
+    <p>The distinction matters. A tool can be excellent for explaining failures and still be too expensive or too noisy to own the final ranking decision.</p>
+
+    <h2>What I changed after the run</h2>
+
+    <p>The production path stayed holistic.</p>
+
+    <p>I kept the BINEVAL replication code offline. It is useful as a measurement harness. It gives me a way to test future judge changes against human labels instead of arguing from intuition. But it does not touch the normal answer path.</p>
+
+    <p>The binary factuality judge also stays behind a flag. Default off. If I ever have to evaluate with a weak model, or if I need operator-facing diagnostics for factuality, I have the machinery ready. But I am not paying 7x calls for a worse or equal ranking signal with the models I actually run.</p>
+
+    <p>That is the practical rule I took from this paper:</p>
+
+    <p>Ask binary questions when you need to debug or rescue a weak judge. Do not assume they beat a capable holistic judge just because they look more interpretable.</p>
+
+    <h2>The lesson for LLM evals</h2>
+
+    <p>LLM evaluation has a bad habit of turning good papers into slogans.</p>
+
+    <p>"Ask, don't judge" is a good slogan. It is also incomplete.</p>
+
+    <p>The operational question is more boring:</p>
+
+    <p>What is your judge model? What is your task? Is the criterion source-grounded? Is the holistic prompt actually collapsing? What is the cost per decision? Are you optimizing for final ranking, operator diagnostics, or prompt improvement?</p>
+
+    <p>Those are different jobs.</p>
+
+    <p>For source-grounded factuality with a weak evaluator, BINEVAL looks useful. For my LLM-council judge running capable models, one good holistic score still wins on cost and did not lose on correlation.</p>
+
+    <p>So I am not replacing the judge.</p>
+
+    <p>I am keeping the questions.</p>
+
+    <hr>
+
+    <p class="note">Based on my replication of <a href="https://arxiv.org/abs/2606.27226">Ask, Don't Judge: Binary Questions for Interpretable LLM Evaluation and Self-Improvement</a> on QAGS. Local artifacts include the BINEVAL scorer, QAGS loader, replication runner, tests, leakage audit, generated question bank, and saved run outputs. Limitations: n=120 instead of the full QAGS set, consistency only, no true weak open evaluator, and provider-side nondeterminism even at temperature 0.</p>
+  </article>
+</body>
+</html>
