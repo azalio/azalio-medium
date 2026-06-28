@@ -77,8 +77,9 @@
 
     <p><strong>TL;DR</strong></p>
     <ul>
+      <li>I have <code>llm-council-mcp</code>: an MCP server that asks a council of frontier models, synthesizes the answer, and has an operator-facing judge for comparing outputs.</li>
       <li>BINEVAL is a useful paper, but the practical lesson is narrower than "replace scores with yes/no questions."</li>
-      <li>In my QAGS replication, binary decomposition never beat a proper holistic G-Eval-style judge with the models I actually run.</li>
+      <li>I tried the paper's binary-question approach against that judge path.</li>
       <li>With Claude it tied within noise; with gpt-4.1-mini the holistic judge was significantly better, at 1/7 the call cost.</li>
       <li>I am keeping binary questions as a diagnostic and rescue tool, not as the production judge path for my LLM-council.</li>
     </ul>
@@ -87,7 +88,7 @@
 
     <p>If you use LLM-as-a-Judge, you know the annoying failure mode. The model gives an answer an 8.5. Or 4 out of 5. Or "mostly correct". The number looks precise enough to put in a dashboard, but not precise enough to tell you what to fix.</p>
 
-    <p>That is why <a href="https://arxiv.org/abs/2606.27226">Ask, Don't Judge: Binary Questions for Interpretable LLM Evaluation and Self-Improvement</a> is attractive. The paper's core move is simple: stop asking the judge for one holistic score. Decompose the criterion into yes/no questions, answer them independently, then aggregate the verdicts.</p>
+    <p>I first ran into it through Changtim Wu's Medium post, <a href="https://medium.com/@changtimwu/ask-dont-judge-%E5%88%A5%E8%AE%93-llm-%E7%9B%B4%E6%8E%A5%E6%89%93%E5%88%86%E6%95%B8-%E8%AE%93%E5%AE%83%E5%9B%9E%E7%AD%94%E6%98%AF%E9%9D%9E%E9%A1%8C-05eaf1e62d0e">"Ask, Don't Judge: 別讓 LLM 直接打分數，讓它回答是非題"</a>, which pointed me to the paper. That is why <a href="https://arxiv.org/abs/2606.27226">Ask, Don't Judge: Binary Questions for Interpretable LLM Evaluation and Self-Improvement</a> is attractive. The paper's core move is simple: stop asking the judge for one holistic score. Decompose the criterion into yes/no questions, answer them independently, then aggregate the verdicts.</p>
 
     <p>Instead of "rate factual consistency from 1 to 5", ask smaller questions:</p>
 
@@ -102,6 +103,10 @@
 
     <p>So I did what I usually do with papers that look useful: I wired the idea into my own system and tried to make it survive contact with a real evaluation path.</p>
 
+    <p>The system here is <code>llm-council-mcp</code>: my MCP server that asks a small council of frontier models, has a chairman synthesize the answer, and keeps an operator-facing judge for comparing that synthesis with the best baseline answer. The judge is not a toy benchmark for me. It is part of how I inspect whether the council actually improved an answer or just made it sound better.</p>
+
+    <p>That is where the paper landed: could I replace one holistic judge score with a set of binary factuality questions and get a better decision surface?</p>
+
     <h2>The tempting conclusion</h2>
 
     <p>The shallow version of the lesson is easy to oversell:</p>
@@ -112,7 +117,7 @@
 
     <p>The paper shows something more specific. Binary decomposition can make evaluation more interpretable, and it can help when a holistic judge collapses. That is valuable. But "more interpretable" and "better ranking signal for my production judge" are different claims.</p>
 
-    <p>In my setup, the second claim mattered. I have an LLM-council system where answers can be compared by an operator-facing judge. If I replace part of that judge, I need to know whether the replacement is actually better, not just cleaner to explain.</p>
+    <p>In my setup, the second claim mattered. If I replace part of the <code>llm-council-mcp</code> judge, I need to know whether the replacement is actually better, not just cleaner to explain.</p>
 
     <p>So I tested it in two rounds.</p>
 
