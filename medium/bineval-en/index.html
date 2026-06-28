@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Ask, Don't Judge? I Tried Binary LLM Evaluation on a Real Judge</title>
+  <title>Ask, Don't Judge? I Tested BINEVAL Against a Production LLM Judge</title>
   <meta name="description" content="BINEVAL is a useful paper. My replication found a narrower lesson: binary questions rescue weak judges, but they did not beat a capable holistic judge.">
   <meta name="medium-tags" content="AI, LLM Evaluation, LLM As Judge, Software Engineering, Developer Tools">
   <link rel="canonical" href="https://azalio.github.io/azalio-medium/medium/bineval-en/">
@@ -71,20 +71,25 @@
 </head>
 <body>
   <article>
-    <h1>Ask, Don't Judge? I Tried Binary LLM Evaluation on a Real Judge</h1>
+    <h1>Ask, Don't Judge? I Tested BINEVAL Against a Production LLM Judge</h1>
 
     <p class="subtitle">BINEVAL is a useful paper. My replication found a narrower lesson: binary questions rescue weak judges, but they did not beat a capable holistic judge.</p>
 
     <p><strong>TL;DR</strong></p>
     <ul>
-      <li>I have <code>llm-council-mcp</code>: an MCP server that asks a council of frontier models, synthesizes the answer, and has an operator-facing judge for comparing outputs.</li>
+      <li>I have <code>llm-council-mcp</code>: an MCP server that asks several strong models, synthesizes the answer, and has an operator-facing judge for comparing outputs.</li>
       <li>BINEVAL is a useful paper, but the practical lesson is narrower than "replace scores with yes/no questions."</li>
       <li>I tried the paper's binary-question approach against that judge path.</li>
+      <li>This is not a takedown of BINEVAL; it is a boundary condition.</li>
       <li>With Claude it tied within noise; with gpt-4.1-mini the holistic judge was significantly better, at 1/7 the call cost.</li>
       <li>I am keeping binary questions as a diagnostic and rescue tool, not as the production judge path for my LLM-council.</li>
     </ul>
 
-    <p>I liked the idea immediately.</p>
+    <p>I wanted BINEVAL to replace part of my LLM-council judge.</p>
+
+    <p>It did not.</p>
+
+    <p>Binary questions made failures easier to inspect, but they did not beat one capable holistic judge on QAGS, and they cost seven times more calls.</p>
 
     <p>If you use LLM-as-a-Judge, you know the annoying failure mode. The model gives an answer an 8.5. Or 4 out of 5. Or "mostly correct". The number looks precise enough to put in a dashboard, but not precise enough to tell you what to fix.</p>
 
@@ -103,7 +108,7 @@
 
     <p>So I did what I usually do with papers that look useful: I wired the idea into my own system and tried to make it survive contact with a real evaluation path.</p>
 
-    <p>The system here is <code>llm-council-mcp</code>: my MCP server that asks a small council of frontier models, has a chairman synthesize the answer, and keeps an operator-facing judge for comparing that synthesis with the best baseline answer. The judge is not a toy benchmark for me. It is part of how I inspect whether the council actually improved an answer or just made it sound better.</p>
+    <p>The system here is <code>llm-council-mcp</code>: my MCP server that asks a small council of strong models, has a chairman synthesize the answer, and keeps an operator-facing judge for comparing that synthesis with the best baseline answer. The judge is not a toy benchmark for me. It is part of how I inspect whether the council actually improved an answer or just made it sound better.</p>
 
     <p>That is where the paper landed: could I replace one holistic judge score with a set of binary factuality questions and get a better decision surface?</p>
 
@@ -188,6 +193,8 @@
 
     <p>Combined CNN/DM + XSum, n=120.</p>
 
+    <p>Important caveat: I did not have access to the paper's weak open-evaluator regime. My "weak" model was still capable enough to score holistically well.</p>
+
     <p>BINEVAL never wins.</p>
 
     <p>With Claude, it ties within noise. With gpt-4.1-mini, the holistic baseline is significantly better: delta rho is -0.104, with a 95% bootstrap interval of [-0.177, -0.034].</p>
@@ -253,6 +260,8 @@
     <p>So I am not replacing the judge.</p>
 
     <p>I am keeping the questions.</p>
+
+    <p>Binary decomposition improves a collapsed judge. It does not automatically beat a competent one.</p>
 
     <hr>
 
